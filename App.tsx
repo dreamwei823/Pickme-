@@ -1,186 +1,169 @@
 import React, { useMemo, useState } from "react";
-import { TING_TO_M2, PRODUCTS } from './constants';
-import { formatCurrency } from './utils';
-import type { Product } from './types';
+
+/**
+ * Pickme 塗料計算器 v2 — 官網風格版
+ * ------------------------------------------------------
+ * 視覺改版：依 Pickme 官網自然礦物色調（灰、米、白）
+ * 無紫色、無 logo，風格柔和、留白多。
+ */
+
+const TING_TO_M2 = 3.305785;
+const PRODUCTS = [
+  { id: "stellar", name: "白辰微光", pricePerTing: 7500 },
+  { id: "stardust", name: "星雲紗", pricePerTing: 8000 },
+  { id: "velmist", name: "雲紋漆", pricePerTing: 7500 },
+  { id: "hazy", name: "織雲紗", pricePerTing: 7500 },
+  { id: "floor", name: "地坪", pricePerTing: 16000 },
+  { id: "marmo", name: "馬莫", pricePerTing: 7000 },
+  { id: "bobo", name: "波波石", pricePerTing: 7000 },
+  { id: "tino", name: "蒂諾", pricePerTing: 9000 },
+];
 
 export default function App() {
-  const [productId, setProductId] = useState<string>(PRODUCTS[0].id);
-  const [ting, setTing] = useState<number>(0.6);
-  const [showCopyToast, setShowCopyToast] = useState<boolean>(false);
-
+  // 產品（每坪單價）
+  const [productId, setProductId] = useState(PRODUCTS[0].id);
   const selected = useMemo(() => PRODUCTS.find(p => p.id === productId)!, [productId]);
-  const total = useMemo(() => (ting > 0 ? ting * selected.pricePerTing : 0), [ting, selected]);
 
-  const [lengthM, setLengthM] = useState<string>('5');
-  const [heightM, setHeightM] = useState<string>('2.8');
+  // ====== 雙向連動：坪數 ↔ 總價 ======
+  // 用字串做受控輸入；null 代表尚未輸入或無效
+  const [tingInput, setTingInput] = useState("");
+  const [totalInput, setTotalInput] = useState("");
+  const [lastChanged, setLastChanged] = useState(null as null | 'ting' | 'total');
 
-  const wallM2 = useMemo(() => Math.max(0, (Number(lengthM) || 0) * (Number(heightM) || 0)), [lengthM, heightM]);
-  const wallTing = useMemo(() => wallM2 / TING_TO_M2, [wallM2]);
+  const tingNum = useMemo(() => {
+    const n = parseFloat(String(tingInput));
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  }, [tingInput]);
 
-  const handleShare = async () => {
-    const shareData = {
-      title: "Pickme 塗料試算器",
-      text: "快來試算你的塗料費用！",
-      url: window.location.href,
-    };
+  const totalNum = useMemo(() => {
+    const n = parseFloat(String(totalInput));
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  }, [totalInput]);
 
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-      } catch (err) {
-        console.error("Error sharing:", err);
+  // 避免小數誤差的比較
+  const approxEqual = (a:number, b:number) => Math.abs(a - b) < 1e-9;
+
+  // 依最後修改的欄位進行反推
+  React.useEffect(() => {
+    if (!selected) return;
+    if (lastChanged === 'ting') {
+      if (tingNum === null) { setTotalInput(""); return; }
+      const next = tingNum * selected.pricePerTing;
+      if (totalNum === null || !approxEqual(totalNum, next)) setTotalInput(String(Math.round(next)));
+    } else if (lastChanged === 'total') {
+      if (totalNum === null) { setTingInput(""); return; }
+      const next = totalNum / selected.pricePerTing;
+      if (tingNum === null || !approxEqual(tingNum, next)) setTingInput(String(next));
+    }
+  // 監聽單價改變：保持最後修改邏輯
+  }, [tingNum, totalNum, selected, lastChanged]);
+
+  React.useEffect(() => {
+    if (lastChanged === 'ting') {
+      if (tingNum !== null && selected) {
+        const next = tingNum * selected.pricePerTing;
+        if (totalNum === null || !approxEqual(totalNum, next)) setTotalInput(String(Math.round(next)));
       }
-    } else {
-      try {
-        await navigator.clipboard.writeText(window.location.href);
-        setShowCopyToast(true);
-        setTimeout(() => setShowCopyToast(false), 2000);
-      } catch (err) {
-        console.error("Failed to copy:", err);
-        alert("無法複製連結");
+    } else if (lastChanged === 'total') {
+       if (totalNum !== null && selected) {
+        const next = totalNum / selected.pricePerTing;
+        if (tingNum === null || !approxEqual(tingNum, next)) setTingInput(String(next));
       }
     }
+  }, [selected]);
+
+
+  // ====== 牆面換算（先計算區，無預設值） ======
+  const [lengthInput, setLengthInput] = useState("");
+  const [heightInput, setHeightInput] = useState("");
+  const lengthNum = useMemo(() => { const n = parseFloat(String(lengthInput)); return Number.isFinite(n)&&n>=0?n:null; }, [lengthInput]);
+  const heightNum = useMemo(() => { const n = parseFloat(String(heightInput)); return Number.isFinite(n)&&n>=0?n:null; }, [heightInput]);
+  const wallM2 = useMemo(() => (lengthNum===null||heightNum===null) ? null : lengthNum*heightNum, [lengthNum, heightNum]);
+  const wallTing = useMemo(() => wallM2===null ? null : wallM2 / TING_TO_M2, [wallM2]);
+
+  const applyWallTingToPrice = () => {
+    if (wallTing !== null) { setTingInput(Number(wallTing.toFixed(3)).toString()); setLastChanged('ting'); }
   };
 
-  const handleApplyWallTing = () => {
-    // Round to 3 decimal places to match the display and avoid floating point inaccuracies
-    const roundedTing = Number(wallTing.toFixed(3));
-    setTing(roundedTing);
-  };
-
+  const formattedTotal = totalNum === null ? '—' : `NT$${Math.round(totalNum).toLocaleString()}`;
 
   return (
     <div className="min-h-screen bg-[#F8F7F4] text-[#2E2E2E] p-6 md:p-10 font-['Noto_Sans_TC']">
       <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <header className="relative text-center mb-10">
+        <header className="text-center mb-10">
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Pickme 塗料試算器</h1>
-          <p className="text-sm text-gray-600 mt-3">快速估算塗料費用與牆面坪數</p>
+          <p className="text-sm text-gray-600 mt-3">快速估算牆面坪數與塗料費用</p>
           <p className="text-xs text-gray-400 mt-1">1 坪 ≈ 3.305785 平方公尺</p>
-
-          <button
-            onClick={handleShare}
-            className="absolute top-0 right-0 p-2 rounded-full bg-white hover:bg-gray-100 transition-colors border border-[#D9D6CF] shadow-sm"
-            aria-label="分享或複製連結"
-            title="分享或複製連結"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#2E2E2E]">
-              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-              <polyline points="16 6 12 2 8 6" />
-              <line x1="12" y1="2" x2="12" y2="15" />
-            </svg>
-          </button>
         </header>
 
-        {/* Price Calculator */}
-        <section className="bg-white border border-[#D9D6CF] rounded-2xl p-6 md:p-8 shadow-sm mb-8">
-          <h2 className="text-lg font-medium mb-3">價格試算</h2>
-          <p className="text-sm text-gray-500 mb-4">依塗料款式與坪數估算總價</p>
+        {/* ① 牆面坪數換算（置頂） */}
+        <section className="bg-white border border-[#D9D6CF] rounded-2xl p-6 shadow-sm mb-8">
+          <h2 className="text-lg font-medium mb-3">牆面坪數換算</h2>
+          <p className="text-sm text-gray-500 mb-4">輸入牆面長高（公尺）自動換算為坪數，可一鍵帶入價格試算</p>
 
-          <div className="grid md:grid-cols-3 gap-6 items-end">
+          <div className="grid md:grid-cols-5 gap-4 items-end">
             <div>
-              <label htmlFor="product-select" className="text-sm text-gray-600">塗料款式</label>
-              <select
-                id="product-select"
-                className="mt-1 w-full border border-[#D9D6CF] rounded-xl p-3 bg-white text-[#2E2E2E] focus:outline-none focus:ring-2 focus:ring-[#2E2E2E]/50 transition-shadow appearance-none"
-                value={productId}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setProductId(e.target.value)}
-              >
-                {PRODUCTS.map((p: Product) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-              <div className="text-xs text-gray-500 mt-2">{formatCurrency(selected.pricePerTing)} / 坪</div>
+              <label className="text-sm text-gray-600">長度（公尺）</label>
+              <input type="number" min={0} step={0.01} className="mt-1 w-full border border-[#D9D6CF] rounded-xl p-3 bg-white text-right focus:outline-none"
+                value={lengthInput} onChange={(e)=>setLengthInput(e.target.value)} placeholder="請輸入" />
             </div>
-
             <div>
-              <label htmlFor="ting-input" className="text-sm text-gray-600">施工坪數</label>
-              <div className="flex items-center gap-1 mt-1">
-                <input
-                  id="ting-input"
-                  type="number"
-                  min={0}
-                  step={0.1}
-                  className="w-full border border-[#D9D6CF] rounded-xl p-3 text-right bg-white text-[#2E2E2E] focus:outline-none focus:ring-2 focus:ring-[#2E2E2E]/50 transition-shadow"
-                  value={ting}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTing(Number(e.target.value) >= 0 ? Number(e.target.value) : 0)}
-                />
-                <span className="text-sm text-gray-500 ml-1">坪</span>
-              </div>
+              <label className="text-sm text-gray-600">高度（公尺）</label>
+              <input type="number" min={0} step={0.01} className="mt-1 w-full border border-[#D9D6CF] rounded-xl p-3 bg-white text-right focus:outline-none"
+                value={heightInput} onChange={(e)=>setHeightInput(e.target.value)} placeholder="請輸入" />
             </div>
-
-            <div className="rounded-2xl p-4 bg-[#2E2E2E] text-white flex flex-col justify-center items-center h-full min-h-[98px]">
-              <div className="text-xs text-white/80 mb-1">預估總價</div>
-              <div className="text-2xl font-semibold tracking-tight">{formatCurrency(total)}</div>
+            <div className="rounded-2xl p-4 bg-[#F2F2F2] text-center">
+              <div className="text-xs text-gray-500 mb-1">面積（平方公尺）</div>
+              <div className="text-xl font-semibold">{wallM2===null? '—' : `${wallM2.toFixed(2)} m²`}</div>
+            </div>
+            <div className="rounded-2xl p-4 bg-[#2E2E2E] text-white text-center">
+              <div className="text-xs text-white/80 mb-1">換算坪數</div>
+              <div className="text-xl font-semibold">{wallTing===null? '—' : `${wallTing.toFixed(3)} 坪`}</div>
+            </div>
+            <div className="flex items-center justify-center">
+              <button onClick={applyWallTingToPrice} disabled={wallTing===null} className="px-4 py-3 rounded-xl border border-[#D9D6CF] text-sm disabled:opacity-50" title="將換算坪數帶入下方價格試算">帶入到價格</button>
             </div>
           </div>
         </section>
 
-        {/* Wall Area Converter */}
-        <section className="bg-white border border-[#D9D6CF] rounded-2xl p-6 md:p-8 shadow-sm">
-          <h2 className="text-lg font-medium mb-3">牆面坪數換算</h2>
-          <p className="text-sm text-gray-500 mb-4">輸入牆面長寬（公尺）自動換算為坪數，並可將結果套用至價格試算</p>
+        {/* ② 價格試算（置底） */}
+        <section className="bg-white border border-[#D9D6CF] rounded-2xl p-6 shadow-sm mb-2">
+          <h2 className="text-lg font-medium mb-3">價格試算</h2>
+          <p className="text-sm text-gray-500 mb-4">坪數與總價雙向連動：修改其中一個欄位，另一個會即時更新</p>
 
-          <div className="grid md:grid-cols-4 gap-6 items-end">
+          <div className="grid md:grid-cols-4 gap-4 items-end">
             <div>
-              <label htmlFor="length-input" className="text-sm text-gray-600">長度（公尺）</label>
-              <input
-                id="length-input"
-                type="number"
-                min={0}
-                step={0.01}
-                className="mt-1 w-full border border-[#D9D6CF] rounded-xl p-3 bg-white text-[#2E2E2E] text-right focus:outline-none focus:ring-2 focus:ring-[#2E2E2E]/50 transition-shadow"
-                value={lengthM}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLengthM(e.target.value)}
-              />
+              <label className="text-sm text-gray-600">塗料款式</label>
+              <select className="mt-1 w-full border border-[#D9D6CF] rounded-xl p-3 bg-white focus:outline-none" value={productId} onChange={(e)=>setProductId(e.target.value)}>
+                {PRODUCTS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <div className="text-xs text-gray-500 mt-2">NT${selected?.pricePerTing.toLocaleString()} / 坪</div>
             </div>
 
             <div>
-              <label htmlFor="height-input" className="text-sm text-gray-600">高度（公尺）</label>
-              <input
-                id="height-input"
-                type="number"
-                min={0}
-                step={0.01}
-                className="mt-1 w-full border border-[#D9D6CF] rounded-xl p-3 bg-white text-[#2E2E2E] text-right focus:outline-none focus:ring-2 focus:ring-[#2E2E2E]/50 transition-shadow"
-                value={heightM}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHeightM(e.target.value)}
-              />
-            </div>
-
-            <div className="rounded-2xl p-4 bg-[#F2F2F2] text-center h-full flex flex-col justify-center min-h-[98px]">
-              <div className="text-xs text-gray-500 mb-1">面積（平方公尺）</div>
-              <div className="text-xl font-semibold tracking-tight">{wallM2.toFixed(2)} m²</div>
-            </div>
-
-            <div className="relative">
-              <div className="rounded-2xl p-4 bg-[#2E2E2E] text-white text-center h-full flex flex-col justify-center min-h-[98px]">
-                <div className="text-xs text-white/80 mb-1">換算坪數</div>
-                <div className="text-xl font-semibold tracking-tight">{wallTing.toFixed(3)} 坪</div>
+              <label className="text-sm text-gray-600">施工坪數</label>
+              <div className="flex items-center gap-1">
+                <input type="number" min={0} step={0.001} className="mt-1 w-full border border-[#D9D6CF] rounded-xl p-3 text-right bg-white focus:outline-none"
+                  value={tingInput} onChange={(e)=>{ setTingInput(e.target.value); setLastChanged('ting'); }} placeholder="請輸入坪數" />
+                <span className="text-sm text-gray-500 ml-1">坪</span>
               </div>
-              <button
-                onClick={handleApplyWallTing}
-                className="absolute -top-2 -right-2 bg-white border border-[#D9D6CF] rounded-full p-2 shadow-lg hover:bg-gray-100 hover:scale-110 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2E2E2E]"
-                title="套用至施工坪數"
-                aria-label="套用牆面坪數至價格試算"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#2E2E2E]">
-                  <line x1="12" y1="19" x2="12" y2="5"></line>
-                  <polyline points="5 12 12 5 19 12"></polyline>
-                </svg>
-              </button>
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-600">預估總價（NT$）</label>
+              <input type="number" min={0} step={1} className="mt-1 w-full border border-[#D9D6CF] rounded-xl p-3 text-right bg-white focus:outline-none"
+                value={totalInput} onChange={(e)=>{ setTotalInput(e.target.value); setLastChanged('total'); }} placeholder="請輸入金額" />
+            </div>
+
+            <div className="rounded-2xl p-4 bg-[#2E2E2E] text-white flex flex-col justify-center items-center">
+              <div className="text-xs text-white/80 mb-1">結果</div>
+              <div className="text-2xl font-semibold">{formattedTotal}</div>
             </div>
           </div>
         </section>
 
         <footer className="text-xs text-gray-400 text-center mt-10">© {new Date().getFullYear()} Pickme. 本試算僅供參考。</footer>
       </div>
-      
-      {showCopyToast && (
-        <div className="fixed bottom-10 left-1/2 bg-[#2E2E2E] text-white text-sm py-2 px-4 rounded-full shadow-lg animate-toast">
-          連結已複製！
-        </div>
-      )}
     </div>
   );
 }
