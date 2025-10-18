@@ -1,0 +1,5 @@
+{
+  "name": "Pickme Paint Calculator",
+  "description": "A calculator to estimate paint costs and convert wall dimensions for Pickme brand paints. It features a clean, minimalist design inspired by natural mineral tones, aligning with the brand's aesthetic.",
+  "requestFramePermissions": []
+}
