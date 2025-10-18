@@ -42,6 +42,12 @@ export default function App() {
     }
   };
 
+  const handleApplyWallTing = () => {
+    // Round to 3 decimal places to match the display and avoid floating point inaccuracies
+    const roundedTing = Number(wallTing.toFixed(3));
+    setTing(roundedTing);
+  };
+
 
   return (
     <div className="min-h-screen bg-[#F8F7F4] text-[#2E2E2E] p-6 md:p-10 font-['Noto_Sans_TC']">
@@ -113,7 +119,7 @@ export default function App() {
         {/* Wall Area Converter */}
         <section className="bg-white border border-[#D9D6CF] rounded-2xl p-6 md:p-8 shadow-sm">
           <h2 className="text-lg font-medium mb-3">牆面坪數換算</h2>
-          <p className="text-sm text-gray-500 mb-4">輸入牆面長寬（公尺）自動換算為坪數</p>
+          <p className="text-sm text-gray-500 mb-4">輸入牆面長寬（公尺）自動換算為坪數，並可將結果套用至價格試算</p>
 
           <div className="grid md:grid-cols-4 gap-6 items-end">
             <div>
@@ -147,9 +153,22 @@ export default function App() {
               <div className="text-xl font-semibold tracking-tight">{wallM2.toFixed(2)} m²</div>
             </div>
 
-            <div className="rounded-2xl p-4 bg-[#2E2E2E] text-white text-center h-full flex flex-col justify-center min-h-[98px]">
-              <div className="text-xs text-white/80 mb-1">換算坪數</div>
-              <div className="text-xl font-semibold tracking-tight">{wallTing.toFixed(3)} 坪</div>
+            <div className="relative">
+              <div className="rounded-2xl p-4 bg-[#2E2E2E] text-white text-center h-full flex flex-col justify-center min-h-[98px]">
+                <div className="text-xs text-white/80 mb-1">換算坪數</div>
+                <div className="text-xl font-semibold tracking-tight">{wallTing.toFixed(3)} 坪</div>
+              </div>
+              <button
+                onClick={handleApplyWallTing}
+                className="absolute -top-2 -right-2 bg-white border border-[#D9D6CF] rounded-full p-2 shadow-lg hover:bg-gray-100 hover:scale-110 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2E2E2E]"
+                title="套用至施工坪數"
+                aria-label="套用牆面坪數至價格試算"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#2E2E2E]">
+                  <line x1="12" y1="19" x2="12" y2="5"></line>
+                  <polyline points="5 12 12 5 19 12"></polyline>
+                </svg>
+              </button>
             </div>
           </div>
         </section>
