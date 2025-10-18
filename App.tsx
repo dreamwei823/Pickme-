@@ -14,9 +14,9 @@ const PRODUCTS = [
   { id: "velmist", name: "雲紋漆", pricePerTing: 7500 },
   { id: "hazy", name: "織雲紗", pricePerTing: 7500 },
   { id: "floor", name: "地坪", pricePerTing: 16000 },
-  { id: "marmo", name: "馬莫", pricePerTing: 7000 },
+  { id: "marmo", name: "馬莫", pricePerTing: 8500 },
   { id: "bobo", name: "波波石", pricePerTing: 7000 },
-  { id: "tino", name: "蒂諾", pricePerTing: 9000 },
+  { id: "tino", name: "蒂諾", pricePerTing: 9500 },
 ];
 
 export default function App() {
@@ -227,7 +227,7 @@ export default function App() {
 
             <div>
               <label className="text-sm text-gray-600">預估總價（NT$）</label>
-              <input type="number" min={0} step={1} className="mt-1 w-full border border-[#D9D6CF] rounded-xl p-3 text-right bg-white focus:outline-none disabled:bg-white"
+              <input type="number" min={0} step={1} disabled={bindOfficialToTotal} className="mt-1 w-full border border-[#D9D6CF] rounded-xl p-3 text-right bg-white focus:outline-none disabled:bg-[#F6F6F4] disabled:text-gray-500"
                 value={totalInput} onChange={(e)=>{ setTotalInput(e.target.value); setLastChanged('total'); }} placeholder={bindOfficialToTotal? "自動計算" : "請輸入"} />
             </div>
 
@@ -264,17 +264,16 @@ export default function App() {
                 <span className="text-sm text-gray-500 ml-1">坪</span>
               </div>
             </div>
+            
+            <div>
+              <label className="text-sm text-gray-600">總價（NT$）</label>
+              <input type="number" min={0} step={1} disabled={bindDesignerToTotal} className="mt-1 w-full border border-[#D9D6CF] rounded-xl p-3 text-right bg-white focus:outline-none disabled:bg-[#F6F6F4] disabled:text-gray-500"
+                value={designerTotal} onChange={(e)=>{ setDesignerTotal(e.target.value); setDesignerLast('total'); }} placeholder={bindDesignerToTotal? "自動計算" : "請輸入"} />
+            </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm text-gray-600">總價（NT$）</label>
-                <input type="number" min={0} step={1} className="mt-1 w-full border border-[#D9D6CF] rounded-xl p-3 text-right bg-white focus:outline-none"
-                  value={designerTotal} onChange={(e)=>{ setDesignerTotal(e.target.value); setDesignerLast('total'); }} placeholder="請輸入" />
-              </div>
-              <div className="rounded-2xl p-4 bg-[#2E2E2E] text-white flex flex-col justify-center items-center">
-                <div className="text-xs text-white/80 mb-1">預估總價</div>
-                <div className="text-2xl font-semibold">{fmtNT(designerTotalNum)}</div>
-              </div>
+            <div className="rounded-2xl p-4 bg-[#2E2E2E] text-white flex flex-col justify-center items-center">
+              <div className="text-xs text-white/80 mb-1">預估總價</div>
+              <div className="text-2xl font-semibold">{fmtNT(designerTotalNum)}</div>
             </div>
           </div>
         </section>
